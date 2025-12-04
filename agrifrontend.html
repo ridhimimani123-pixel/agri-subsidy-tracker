@@ -4,6 +4,8 @@
   <meta charset="UTF-8" />
   <title>Subsidy Fraud Detection Dashboard</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <!-- Chart.js CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
     * {
       box-sizing: border-box;
@@ -64,19 +66,33 @@
       color: #e5e7eb;
     }
 
+    .btn-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+    }
+
     .btn {
       background: linear-gradient(135deg, #22c55e, #16a34a);
       color: white;
       border: none;
       border-radius: 999px;
-      padding: 10px 18px;
-      font-size: 14px;
+      padding: 8px 16px;
+      font-size: 13px;
       font-weight: 600;
       cursor: pointer;
       display: inline-flex;
       align-items: center;
       gap: 6px;
       box-shadow: 0 10px 25px rgba(34, 197, 94, 0.4);
+      white-space: nowrap;
+    }
+
+    .btn.secondary {
+      background: #020617;
+      border: 1px solid #4b5563;
+      box-shadow: none;
     }
 
     .btn:disabled {
@@ -193,9 +209,20 @@
       margin-top: 4px;
     }
 
+    .chart-wrapper {
+      margin-top: 16px;
+      background: #020617;
+      border-radius: 14px;
+      padding: 10px;
+      border: 1px solid #1f2937;
+    }
+
     @media (max-width: 600px) {
       .upload-section {
         align-items: flex-start;
+      }
+      .btn-row {
+        width: 100%;
       }
     }
   </style>
@@ -204,7 +231,7 @@
   <div class="container">
     <h1>Subsidy Fraud Detection</h1>
     <div class="subtitle">
-      Auto-generated risk scores and anomaly insights from agricultural subsidy transactions.
+      Risk-scored dealers, anomalies, and auto-generated investigation reports.
     </div>
 
     <div class="card">
@@ -213,10 +240,14 @@
           <label for="fileInput"><strong>Upload transactions CSV:</strong></label>
           <input type="file" id="fileInput" accept=".csv" />
         </div>
-        <button class="btn" id="analyzeBtn">
-          <span>⚙️ Analyze Data</span>
-        </button>
+        <div class="btn-row">
+          <button class="btn" id="analyzeBtn">⚙️ Analyze Data</button>
+          <button class="btn secondary" id="reportBtn" disabled>📄 Download PDF Report</button>
+          <button class="btn secondary" id="jsonBtn" disabled>🧾 Export JSON</button>
+          <button class="btn secondary" id="csvBtn" disabled>📊 Export CSV</button>
+        </div>
       </div>
+
       <div id="status" class="status">No file analyzed yet.</div>
 
       <div id="summarySection" style="display:none;">
@@ -235,6 +266,16 @@
           </div>
         </div>
 
+        <div class="section-title">Risk Distribution (Top Dealers)</div>
+        <div class="chart-wrapper">
+          <canvas id="riskChart" height="120"></canvas>
+        </div>
+
+        <div class="section-title">Risk Categories (All Dealers)</div>
+        <div class="chart-wrapper">
+          <canvas id="riskCategoryChart" height="120"></canvas>
+        </div>
+
         <div class="section-title">Top Suspicious Dealers</div>
         <div id="suspiciousDealersTable"></div>
 
@@ -246,6 +287,9 @@
 
   <script>
     const analyzeBtn = document.getElementById("analyzeBtn");
+    const reportBtn = document.getElementById("reportBtn");
+    const jsonBtn = document.getElementById("jsonBtn");
+    const csvBtn = document.getElementById("csvBtn");
     const fileInput = document.getElementById("fileInput");
     const statusEl = document.getElementById("status");
     const summarySection = document.getElementById("summarySection");
@@ -254,6 +298,12 @@
     const totalTransactionsEl = document.getElementById("totalTransactions");
     const suspiciousDealersTableEl = document.getElementById("suspiciousDealersTable");
     const suspiciousFarmersTableEl = document.getElementById("suspiciousFarmersTable");
+    const riskChartCanvas = document.getElementById("riskChart");
+    const riskCategoryChartCanvas = document.getElementById("riskCategoryChart");
+
+    let lastAnalysisData = null;
+    let riskChart = null;
+    let riskCategoryChart = null;
 
     function getRiskPill(score) {
       score = Number(score || 0);
@@ -263,12 +313,97 @@
       return `<span class="pill-risk ${cls}">${score}</span>`;
     }
 
+    function renderRiskChart(dealers) {
+      if (!dealers || dealers.length === 0) {
+        if (riskChart) {
+          riskChart.destroy();
+          riskChart = null;
+        }
+        return;
+      }
+
+      const top = dealers.slice(0, 8);
+      const labels = top.map(d => d.dealer_id);
+      const scores = top.map(d => d.risk_score);
+
+      if (riskChart) {
+        riskChart.destroy();
+      }
+
+      riskChart = new Chart(riskChartCanvas, {
+        type: "bar",
+        data: {
+          labels,
+          datasets: [{
+            label: "Risk Score",
+            data: scores
+          }]
+        },
+        options: {
+          responsive: true,
+          plugins: {
+            legend: { display: false },
+            title: { display: false }
+          },
+          scales: {
+            y: {
+              beginAtZero: true,
+              max: 100
+            }
+          }
+        }
+      });
+    }
+
+    function renderRiskCategoryChart(allDealers) {
+      if (!allDealers || allDealers.length === 0) {
+        if (riskCategoryChart) {
+          riskCategoryChart.destroy();
+          riskCategoryChart = null;
+        }
+        return;
+      }
+
+      let low = 0, mid = 0, high = 0;
+
+      allDealers.forEach(d => {
+        const s = Number(d.risk_score || 0);
+        if (s >= 75) high++;
+        else if (s >= 40) mid++;
+        else low++;
+      });
+
+      const labels = ["Low Risk (< 40)", "Medium Risk (40–74)", "High Risk (75–100)"];
+      const data = [low, mid, high];
+
+      if (riskCategoryChart) {
+        riskCategoryChart.destroy();
+      }
+
+      riskCategoryChart = new Chart(riskCategoryChartCanvas, {
+        type: "pie",
+        data: {
+          labels,
+          datasets: [{
+            data
+          }]
+        },
+        options: {
+          responsive: true,
+          plugins: {
+            legend: { position: "bottom" },
+            title: { display: false }
+          }
+        }
+      });
+    }
+
     function renderSuspiciousDealers(dealers) {
       if (!dealers || dealers.length === 0) {
         return '<div class="empty-text">No high-risk dealers detected based on the current thresholds.</div>';
       }
 
-      const headers = ["Dealer ID", "Risk", "Total Txns", "Total Fertilizer", "Unique Farmers", "Flags"];
+      const headers = ["Dealer ID", "Risk", "Rule Score", "ML Score", "Total Txns", "Total Fertilizer", "Unique Farmers", "Flags"];
 
       const rows = dealers.map(d => {
         const flags = [];
@@ -278,6 +413,8 @@
           <tr>
             <td>${d.dealer_id}</td>
             <td>${getRiskPill(d.risk_score)}</td>
+            <td>${d.rule_score ?? "-"}</td>
+            <td>${d.ml_score ?? "-"}</td>
             <td>${d.total_transactions ?? "-"}</td>
             <td>${d.total_fertilizer ?? "-"}</td>
             <td>${d.unique_farmers ?? "-"}</td>
@@ -337,11 +474,17 @@
       `;
     }
 
+    function enableExportButtons(enabled) {
+      reportBtn.disabled = !enabled;
+      jsonBtn.disabled = !enabled;
+      csvBtn.disabled = !enabled;
+    }
+
     analyzeBtn.addEventListener("click", async () => {
       const file = fileInput.files[0];
       if (!file) {
         statusEl.textContent = "Please select a CSV file before analyzing.";
-        statusEl.classList.remove("error");
+        statusEl.classList.add("error");
         return;
       }
 
@@ -349,6 +492,7 @@
       formData.append("file", file);
 
       analyzeBtn.disabled = true;
+      enableExportButtons(false);
       statusEl.textContent = "Analyzing data…";
       statusEl.classList.remove("error");
 
@@ -367,18 +511,25 @@
           return;
         }
 
-        // Summary
+        lastAnalysisData = data;
+
         totalDealersEl.textContent = data.summary?.total_dealers ?? 0;
         suspiciousDealersCountEl.textContent = data.summary?.suspicious_dealers_count ?? 0;
         totalTransactionsEl.textContent = data.summary?.total_transactions ?? 0;
 
-        // Tables
         suspiciousDealersTableEl.innerHTML = renderSuspiciousDealers(data.suspicious_dealers);
         suspiciousFarmersTableEl.innerHTML = renderSuspiciousFarmers(data.suspicious_farmers);
+
+        // Bar chart for top dealers (use suspicious if present, else all)
+        renderRiskChart(data.suspicious_dealers.length ? data.suspicious_dealers : data.dealer_scores);
+        // Pie chart for all dealers
+        renderRiskCategoryChart(data.dealer_scores);
 
         summarySection.style.display = "block";
         statusEl.textContent = "Analysis complete. Scroll to review risk insights.";
         statusEl.classList.remove("error");
+
+        enableExportButtons(true);
       } catch (err) {
         console.error(err);
         statusEl.textContent = "Could not connect to backend. Is Flask running on port 5000?";
@@ -386,6 +537,62 @@
       } finally {
         analyzeBtn.disabled = false;
       }
+    });
+
+    reportBtn.addEventListener("click", () => {
+      if (!lastAnalysisData) {
+        statusEl.textContent = "Run analysis first before downloading the report.";
+        statusEl.classList.add("error");
+        return;
+      }
+      window.open("http://localhost:5000/generate_report", "_blank");
+    });
+
+    jsonBtn.addEventListener("click", () => {
+      if (!lastAnalysisData) return;
+      const blob = new Blob([JSON.stringify(lastAnalysisData, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "fraud_analysis_result.json";
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    });
+
+    csvBtn.addEventListener("click", () => {
+      if (!lastAnalysisData || !lastAnalysisData.suspicious_dealers) return;
+      const dealers = lastAnalysisData.suspicious_dealers;
+      if (!dealers.length) {
+        alert("No suspicious dealers to export based on current thresholds.");
+        return;
+      }
+
+      const headers = ["dealer_id", "risk_score", "rule_score", "ml_score", "total_transactions", "total_fertilizer", "unique_farmers"];
+      const rows = [headers.join(",")];
+
+      dealers.forEach(d => {
+        rows.push([
+          d.dealer_id,
+          d.risk_score,
+          d.rule_score,
+          d.ml_score,
+          d.total_transactions,
+          d.total_fertilizer,
+          d.unique_farmers
+        ].join(","));
+      });
+
+      const blob = new Blob([rows.join("\n")], { type: "text/csv" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "suspicious_dealers.csv";
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
     });
   </script>
 </body>
