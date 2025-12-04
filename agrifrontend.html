@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Subsidy Fraud Detection Dashboard</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    * {
+      box-sizing: border-box;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    body {
+      margin: 0;
+      padding: 0;
+      background: #0f172a;
+      color: #e5e7eb;
+    }
+
+    .container {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 24px 16px 40px;
+    }
+
+    h1 {
+      text-align: center;
+      margin-bottom: 4px;
+      font-size: 28px;
+    }
+
+    .subtitle {
+      text-align: center;
+      font-size: 13px;
+      color: #9ca3af;
+      margin-bottom: 24px;
+    }
+
+    .card {
+      background: #020617;
+      border-radius: 16px;
+      padding: 16px 18px;
+      border: 1px solid #1f2937;
+      box-shadow: 0 18px 40px rgba(15, 23, 42, 0.7);
+    }
+
+    .upload-section {
+      margin-bottom: 20px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .file-input-wrapper {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    input[type="file"] {
+      color: #e5e7eb;
+    }
+
+    .btn {
+      background: linear-gradient(135deg, #22c55e, #16a34a);
+      color: white;
+      border: none;
+      border-radius: 999px;
+      padding: 10px 18px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      box-shadow: 0 10px 25px rgba(34, 197, 94, 0.4);
+    }
+
+    .btn:disabled {
+      cursor: not-allowed;
+      opacity: 0.7;
+      box-shadow: none;
+    }
+
+    .status {
+      font-size: 13px;
+      color: #9ca3af;
+      margin-top: 6px;
+    }
+
+    .status.error {
+      color: #f97373;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 12px;
+      margin-top: 12px;
+    }
+
+    .mini-card {
+      background: #020617;
+      border-radius: 14px;
+      padding: 12px 14px;
+      border: 1px solid #1f2937;
+    }
+
+    .mini-label {
+      font-size: 11px;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      color: #9ca3af;
+      margin-bottom: 4px;
+    }
+
+    .mini-value {
+      font-size: 20px;
+      font-weight: 700;
+    }
+
+    .section-title {
+      margin: 20px 0 8px;
+      font-size: 17px;
+      font-weight: 600;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+      margin-top: 8px;
+    }
+
+    th, td {
+      padding: 8px 6px;
+      text-align: left;
+      border-bottom: 1px solid #111827;
+    }
+
+    th {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: #9ca3af;
+    }
+
+    tr:nth-child(even) {
+      background: #020617;
+    }
+
+    .pill-risk {
+      display: inline-flex;
+      align-items: center;
+      padding: 2px 8px;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 600;
+    }
+
+    .pill-high {
+      background: rgba(248, 113, 113, 0.15);
+      color: #fecaca;
+    }
+
+    .pill-medium {
+      background: rgba(234, 179, 8, 0.12);
+      color: #facc15;
+    }
+
+    .pill-low {
+      background: rgba(52, 211, 153, 0.12);
+      color: #6ee7b7;
+    }
+
+    .tag {
+      font-size: 11px;
+      padding: 2px 6px;
+      border-radius: 999px;
+      background: #0b1120;
+      border: 1px solid #1f2937;
+      display: inline-block;
+      margin-right: 4px;
+      margin-bottom: 2px;
+    }
+
+    .empty-text {
+      font-size: 13px;
+      color: #6b7280;
+      margin-top: 4px;
+    }
+
+    @media (max-width: 600px) {
+      .upload-section {
+        align-items: flex-start;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Subsidy Fraud Detection</h1>
+    <div class="subtitle">
+      Auto-generated risk scores and anomaly insights from agricultural subsidy transactions.
+    </div>
+
+    <div class="card">
+      <div class="upload-section">
+        <div class="file-input-wrapper">
+          <label for="fileInput"><strong>Upload transactions CSV:</strong></label>
+          <input type="file" id="fileInput" accept=".csv" />
+        </div>
+        <button class="btn" id="analyzeBtn">
+          <span>⚙️ Analyze Data</span>
+        </button>
+      </div>
+      <div id="status" class="status">No file analyzed yet.</div>
+
+      <div id="summarySection" style="display:none;">
+        <div class="grid">
+          <div class="mini-card">
+            <div class="mini-label">Total Dealers</div>
+            <div class="mini-value" id="totalDealers">0</div>
+          </div>
+          <div class="mini-card">
+            <div class="mini-label">Suspicious Dealers</div>
+            <div class="mini-value" id="suspiciousDealersCount">0</div>
+          </div>
+          <div class="mini-card">
+            <div class="mini-label">Total Transactions</div>
+            <div class="mini-value" id="totalTransactions">0</div>
+          </div>
+        </div>
+
+        <div class="section-title">Top Suspicious Dealers</div>
+        <div id="suspiciousDealersTable"></div>
+
+        <div class="section-title">Suspicious Farmers / Anomalies</div>
+        <div id="suspiciousFarmersTable"></div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const analyzeBtn = document.getElementById("analyzeBtn");
+    const fileInput = document.getElementById("fileInput");
+    const statusEl = document.getElementById("status");
+    const summarySection = document.getElementById("summarySection");
+    const totalDealersEl = document.getElementById("totalDealers");
+    const suspiciousDealersCountEl = document.getElementById("suspiciousDealersCount");
+    const totalTransactionsEl = document.getElementById("totalTransactions");
+    const suspiciousDealersTableEl = document.getElementById("suspiciousDealersTable");
+    const suspiciousFarmersTableEl = document.getElementById("suspiciousFarmersTable");
+
+    function getRiskPill(score) {
+      score = Number(score || 0);
+      let cls = "pill-low";
+      if (score >= 75) cls = "pill-high";
+      else if (score >= 40) cls = "pill-medium";
+      return `<span class="pill-risk ${cls}">${score}</span>`;
+    }
+
+    function renderSuspiciousDealers(dealers) {
+      if (!dealers || dealers.length === 0) {
+        return '<div class="empty-text">No high-risk dealers detected based on the current thresholds.</div>';
+      }
+
+      const headers = ["Dealer ID", "Risk", "Total Txns", "Total Fertilizer", "Unique Farmers", "Flags"];
+
+      const rows = dealers.map(d => {
+        const flags = [];
+        if (d.flag_high_volume) flags.push("High volume");
+        if (d.flag_many_farmers) flags.push("Many farmers");
+        return `
+          <tr>
+            <td>${d.dealer_id}</td>
+            <td>${getRiskPill(d.risk_score)}</td>
+            <td>${d.total_transactions ?? "-"}</td>
+            <td>${d.total_fertilizer ?? "-"}</td>
+            <td>${d.unique_farmers ?? "-"}</td>
+            <td>${flags.map(f => `<span class="tag">${f}</span>`).join(" ")}</td>
+          </tr>
+        `;
+      }).join("");
+
+      return `
+        <div style="overflow-x:auto;">
+          <table>
+            <thead>
+              <tr>
+                ${headers.map(h => `<th>${h}</th>`).join("")}
+              </tr>
+            </thead>
+            <tbody>
+              ${rows}
+            </tbody>
+          </table>
+        </div>
+      `;
+    }
+
+    function renderSuspiciousFarmers(farmers) {
+      if (!farmers || farmers.length === 0) {
+        return '<div class="empty-text">No farmer-level anomalies detected for the current rules.</div>';
+      }
+
+      const rows = farmers.map(f => `
+        <tr>
+          <td>${f.farmer_id}</td>
+          <td>${f.dealer_id}</td>
+          <td>${f.reason}</td>
+          <td>${f.land_area ?? "-"}</td>
+          <td>${f.fertilizer_qty ?? "-"}</td>
+        </tr>
+      `).join("");
+
+      return `
+        <div style="overflow-x:auto;">
+          <table>
+            <thead>
+              <tr>
+                <th>Farmer ID</th>
+                <th>Dealer ID</th>
+                <th>Reason</th>
+                <th>Land Area</th>
+                <th>Fertilizer Qty</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${rows}
+            </tbody>
+          </table>
+        </div>
+      `;
+    }
+
+    analyzeBtn.addEventListener("click", async () => {
+      const file = fileInput.files[0];
+      if (!file) {
+        statusEl.textContent = "Please select a CSV file before analyzing.";
+        statusEl.classList.remove("error");
+        return;
+      }
+
+      const formData = new FormData();
+      formData.append("file", file);
+
+      analyzeBtn.disabled = true;
+      statusEl.textContent = "Analyzing data…";
+      statusEl.classList.remove("error");
+
+      try {
+        const res = await fetch("http://localhost:5000/analyze", {
+          method: "POST",
+          body: formData
+        });
+
+        const data = await res.json();
+
+        if (!res.ok) {
+          statusEl.textContent = data.error || "Analysis failed.";
+          statusEl.classList.add("error");
+          analyzeBtn.disabled = false;
+          return;
+        }
+
+        // Summary
+        totalDealersEl.textContent = data.summary?.total_dealers ?? 0;
+        suspiciousDealersCountEl.textContent = data.summary?.suspicious_dealers_count ?? 0;
+        totalTransactionsEl.textContent = data.summary?.total_transactions ?? 0;
+
+        // Tables
+        suspiciousDealersTableEl.innerHTML = renderSuspiciousDealers(data.suspicious_dealers);
+        suspiciousFarmersTableEl.innerHTML = renderSuspiciousFarmers(data.suspicious_farmers);
+
+        summarySection.style.display = "block";
+        statusEl.textContent = "Analysis complete. Scroll to review risk insights.";
+        statusEl.classList.remove("error");
+      } catch (err) {
+        console.error(err);
+        statusEl.textContent = "Could not connect to backend. Is Flask running on port 5000?";
+        statusEl.classList.add("error");
+      } finally {
+        analyzeBtn.disabled = false;
+      }
+    });
+  </script>
+</body>
+</html>
