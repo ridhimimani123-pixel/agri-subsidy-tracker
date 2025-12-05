@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Agri Subsidy Tracker – Dashboard</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="logo">Agri Subsidy Tracker</div>
+    <div class="topbar-right">
+      <span class="tag">Admin Dashboard</span>
+    </div>
+  </header>
+
+  <main class="container">
+    <!-- Flash message -->
+    <div id="flash" class="flash hidden"></div>
+
+    <!-- Stats Section -->
+    <section class="stats">
+      <div class="card">
+        <h3>Total Scans</h3>
+        <p id="total-scans">–</p>
+      </div>
+      <div class="card">
+        <h3>Delivered</h3>
+        <p id="delivered-count">–</p>
+      </div>
+      <div class="card">
+        <h3>Pending</h3>
+        <p id="pending-count">–</p>
+      </div>
+      <div class="card alert-card">
+        <h3>Active Alerts</h3>
+        <p id="alert-count">–</p>
+      </div>
+    </section>
+
+    <!-- Top grid: Dealer action + Farmers around dealer -->
+    <section class="grid grid-2">
+      <!-- Dealer Record Transaction -->
+      <div class="panel">
+        <div class="panel-header">
+          <h2>Record Transaction (Dealer)</h2>
+        </div>
+        <form id="tx-form" class="form">
+          <div class="field">
+            <label for="dealer-code">Dealer Code</label>
+            <input id="dealer-code" type="text" placeholder="e.g. D123" required />
+          </div>
+          <div class="field">
+            <label for="farmer-code">Farmer Code</label>
+            <input id="farmer-code" type="text" placeholder="e.g. F101" required />
+          </div>
+          <div class="field">
+            <label for="item-id">Item ID</label>
+            <input id="item-id" type="text" placeholder="e.g. ITEM-001" required />
+          </div>
+          <button type="submit">Record Transaction</button>
+        </form>
+        <p class="help-text">
+          This simulates a dealer scanning a QR + linking to a farmer.
+        </p>
+      </div>
+
+      <!-- Farmers in Radius -->
+      <div class="panel radius-panel">
+        <div class="panel-header">
+          <h2>Farmers Around Dealer</h2>
+        </div>
+
+        <form id="radius-form" class="radius-form">
+          <div class="field">
+            <label for="radius-dealer-code">Dealer Code</label>
+            <input id="radius-dealer-code" type="text" placeholder="e.g. D123" required />
+          </div>
+          <div class="field">
+            <label for="radius-km">Radius (km)</label>
+            <input id="radius-km" type="number" min="1" value="10" />
+          </div>
+          <button type="submit">Check</button>
+        </form>
+
+        <div class="radius-result">
+          <p><strong>Farmers (last 24h):</strong> <span id="farmers-24h">–</span></p>
+          <p><strong>Farmers (last 7d):</strong> <span id="farmers-7d">–</span></p>
+          <p><strong>Average per day:</strong> <span id="avg-per-day">–</span></p>
+          <p><strong>Status:</strong> <span id="spike-status">No data</span></p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Middle grid: Transactions + ML Alerts -->
+    <section class="grid">
+      <!-- Recent Transactions -->
+      <div class="panel">
+        <div class="panel-header">
+          <h2>Recent Transactions</h2>
+          <button id="refresh-tx" class="ghost-btn">Refresh</button>
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Item</th>
+              <th>Dealer</th>
+              <th>Farmer</th>
+              <th>Status</th>
+              <th>Time</th>
+            </tr>
+          </thead>
+          <tbody id="tx-table-body">
+            <!-- Filled by JS -->
+          </tbody>
+        </table>
+      </div>
+
+      <!-- ML Anomalies -->
+      <div class="panel">
+        <div class="panel-header">
+          <h2>ML Anomaly Alerts</h2>
+          <input id="ml-dealer-code" class="small-input" type="text" placeholder="Dealer code e.g. D123" />
+          <button id="load-ml" class="ghost-btn">Load</button>
+        </div>
+        <ul id="ml-alert-list" class="alert-list">
+          <!-- Filled by JS -->
+        </ul>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    Built for Hackathon: Subsidy Leakage in India
+  </footer>
+
+  <script src="script.js"></script>
+</body>
+</html>
